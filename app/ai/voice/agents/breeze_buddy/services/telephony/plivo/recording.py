@@ -25,9 +25,9 @@ def start_call_recording(call_uuid: str) -> bool:
     """
     try:
         client = plivo.RestClient(PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN)
-        
+
         logger.info(f"Starting recording for Plivo call: {call_uuid}")
-        
+
         # Start recording the call with callback URL
         callback_url = f"{APP_BASE_URL}/agent/voice/breeze-buddy/plivo/callback/details"
         response = client.calls.record(
@@ -35,10 +35,10 @@ def start_call_recording(call_uuid: str) -> bool:
             callback_url=callback_url,
             callback_method="POST"
         )
-        
+
         logger.info(f"Plivo recording started successfully: {response}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error starting Plivo recording: {e}", exc_info=True)
         return False

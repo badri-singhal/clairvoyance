@@ -192,7 +192,7 @@ async def handle_plivo_answer(request: Request) -> HTMLResponse:
     call_uuid = form.get("CallUUID")
     if call_uuid:
         logger.info(f"Starting recording for Plivo call UUID: {call_uuid}")
-        # Start recording asynchronously
+        # Start recording (note: recording completion callback is processed separately)
         try:
             start_call_recording(call_uuid)
         except Exception as e:
