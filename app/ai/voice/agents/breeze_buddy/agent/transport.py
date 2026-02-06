@@ -1,6 +1,6 @@
 """Transport configuration for voice agents."""
 
-from typing import Optional
+from typing import Any, Optional
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.transports.daily.transport import DailyParams
@@ -14,11 +14,13 @@ TRANSPORT_TYPE_DAILY = "daily"
 
 def get_transport_params(
     vad_analyzer: Optional[SileroVADAnalyzer],
+    audio_out_mixer: Optional[Any] = None,
 ) -> dict:
     """Get transport parameters dictionary for all transport types.
 
     Args:
         vad_analyzer: The VAD analyzer instance to use
+        audio_out_mixer: Optional audio mixer for background sounds
 
     Returns:
         Dictionary mapping transport types to parameter factory functions
@@ -35,6 +37,7 @@ def get_transport_params(
             vad_analyzer=vad_analyzer,
             audio_in_sample_rate=TELEPHONY_SAMPLE_RATE,
             audio_out_sample_rate=TELEPHONY_SAMPLE_RATE,
+            audio_out_mixer=audio_out_mixer,
         ),
         "exotel": lambda: FastAPIWebsocketParams(
             audio_in_enabled=True,
@@ -42,6 +45,7 @@ def get_transport_params(
             vad_analyzer=vad_analyzer,
             audio_in_sample_rate=TELEPHONY_SAMPLE_RATE,
             audio_out_sample_rate=TELEPHONY_SAMPLE_RATE,
+            audio_out_mixer=audio_out_mixer,
         ),
         "telnyx": lambda: FastAPIWebsocketParams(
             audio_in_enabled=True,
@@ -49,6 +53,7 @@ def get_transport_params(
             vad_analyzer=vad_analyzer,
             audio_in_sample_rate=TELEPHONY_SAMPLE_RATE,
             audio_out_sample_rate=TELEPHONY_SAMPLE_RATE,
+            audio_out_mixer=audio_out_mixer,
         ),
         "plivo": lambda: FastAPIWebsocketParams(
             audio_in_enabled=True,
@@ -56,5 +61,6 @@ def get_transport_params(
             vad_analyzer=vad_analyzer,
             audio_in_sample_rate=TELEPHONY_SAMPLE_RATE,
             audio_out_sample_rate=TELEPHONY_SAMPLE_RATE,
+            audio_out_mixer=audio_out_mixer,
         ),
     }
