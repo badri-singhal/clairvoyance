@@ -1,7 +1,8 @@
 """Transport configuration for voice agents."""
 
-from typing import Any, Optional
+from typing import Optional
 
+from pipecat.audio.mixers.soundfile_mixer import SoundfileMixer
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.transports.daily.transport import DailyParams
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
@@ -14,13 +15,13 @@ TRANSPORT_TYPE_DAILY = "daily"
 
 def get_transport_params(
     vad_analyzer: Optional[SileroVADAnalyzer],
-    audio_out_mixer: Optional[Any] = None,
+    audio_out_mixer: Optional[SoundfileMixer] = None,
 ) -> dict:
     """Get transport parameters dictionary for all transport types.
 
     Args:
         vad_analyzer: The VAD analyzer instance to use
-        audio_out_mixer: Optional audio mixer for background sounds
+        audio_out_mixer: Optional audio mixer for background sounds (only used by telephony transports)
 
     Returns:
         Dictionary mapping transport types to parameter factory functions
@@ -30,6 +31,7 @@ def get_transport_params(
             audio_in_enabled=True,
             audio_out_enabled=True,
             vad_analyzer=vad_analyzer,
+            # Note: DailyParams does not support audio_out_mixer
         ),
         "twilio": lambda: FastAPIWebsocketParams(
             audio_in_enabled=True,
