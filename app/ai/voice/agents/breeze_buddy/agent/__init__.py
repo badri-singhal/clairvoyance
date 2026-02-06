@@ -160,10 +160,8 @@ class Agent:
             is_daily_mode=True
         )
 
-        # Create background sound mixer if configured in template
-        audio_out_mixer = create_background_sound_mixer(self.template)
-
-        transport_params = get_transport_params(self.vad_analyzer, audio_out_mixer)
+        # Daily transport does not support audio_out_mixer, so we pass None
+        transport_params = get_transport_params(self.vad_analyzer, None)
         self.transport = await create_transport(runner_args, transport_params)
 
     async def _setup_telephony_transport(self) -> bool:
