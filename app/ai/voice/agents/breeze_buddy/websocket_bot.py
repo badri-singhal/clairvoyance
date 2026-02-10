@@ -50,6 +50,7 @@ from app.core.config.static import (
     AZURE_BREEZE_BUDDY_OPENAI_MODEL,
     AZURE_OPENAI_API_KEY,
     AZURE_OPENAI_ENDPOINT,
+    BREEZE_BUDDY_USER_IDLE_MESSAGE,
     BREEZE_BUDDY_USER_IDLE_TIMEOUT,
     BREEZE_BUDDY_VAD_CONFIDENCE,
     BREEZE_BUDDY_VAD_MIN_VOLUME,
@@ -305,7 +306,7 @@ class OrderConfirmationBot:
                         [
                             {
                                 "role": "system",
-                                "content": "The user has been quiet for a while. Ask if they are still there and re-engage them in the conversation.",
+                                "content": BREEZE_BUDDY_USER_IDLE_MESSAGE,
                             }
                         ],
                         run_llm=True,
@@ -338,10 +339,10 @@ class OrderConfirmationBot:
             try:
                 user_aggregator_idx = pipeline_parts.index(user_aggregator)
                 pipeline_parts.insert(user_aggregator_idx, user_idle)
-            except ValueError:
-                # Fallback: insert at position 3 (after stt_mute_filter)
-                logger.warning("Could not find user aggregator in pipeline, inserting at position 3")
-                pipeline_parts.insert(3, user_idle)
+            except ValueError as e:
+                # This should never happen since we explicitly added user_aggregator above
+                logger.error(f"Failed to find user aggregator in pipeline: {e}. User idle detection disabled.")
+                # Don't insert user_idle - it's safer to disable the feature than insert at wrong position
 
         pipeline = Pipeline(pipeline_parts)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

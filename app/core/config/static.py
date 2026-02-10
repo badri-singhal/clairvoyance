@@ -475,6 +475,12 @@ BREEZE_BUDDY_USER_IDLE_TIMEOUT = float(
     os.environ.get("BREEZE_BUDDY_USER_IDLE_TIMEOUT", "5.0")
 )
 
+# User idle re-engagement message
+BREEZE_BUDDY_USER_IDLE_MESSAGE = (
+    "The user has been quiet for a while. "
+    "Ask if they are still there and re-engage them in the conversation."
+)
+
 # Dashboard Authentication
 BREEZE_BUDDY_DASHBOARD_USERNAME = os.getenv("BREEZE_BUDDY_DASHBOARD_USERNAME", "")
 BREEZE_BUDDY_DASHBOARD_PASSWORD = os.getenv("BREEZE_BUDDY_DASHBOARD_PASSWORD", "")
