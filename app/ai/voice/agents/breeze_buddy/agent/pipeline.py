@@ -152,7 +152,7 @@ async def build_pipeline(
                     [
                         {
                             "role": "system",
-                            "content": "The user has been quiet for a while. Ask if they are still there and try to re-engage them in the conversation.",
+                            "content": "The user has been quiet for a while. Ask if they are still there and re-engage them in the conversation.",
                         }
                     ],
                     run_llm=True,
@@ -165,10 +165,13 @@ async def build_pipeline(
         )
         logger.info(f"User idle detection enabled with timeout: {BREEZE_BUDDY_USER_IDLE_TIMEOUT}s")
 
+    # Store reference to user aggregator for position lookup
+    user_aggregator = context_aggregator.user()
+    
     pipeline_parts = [
         transport.input(),
         stt,
-        context_aggregator.user(),
+        user_aggregator,
         llm,
         tts,
         transport.output(),
@@ -178,12 +181,15 @@ async def build_pipeline(
     if response_gate:
         pipeline_parts.insert(2, response_gate)
 
-    # Insert user idle processor after STT and before context aggregator
+    # Insert user idle processor before context aggregator to monitor user activity
     if user_idle:
-        insert_position = 2
-        if response_gate:
-            insert_position = 3  # After response_gate if it exists
-        pipeline_parts.insert(insert_position, user_idle)
+        try:
+            user_aggregator_idx = pipeline_parts.index(user_aggregator)
+            pipeline_parts.insert(user_aggregator_idx, user_idle)
+        except ValueError:
+            # Fallback: insert at position 2 (after transport.input and stt)
+            logger.warning("Could not find user aggregator in pipeline, inserting at position 2")
+            pipeline_parts.insert(2, user_idle)
 
     return Pipeline(pipeline_parts), context, context_aggregator
 

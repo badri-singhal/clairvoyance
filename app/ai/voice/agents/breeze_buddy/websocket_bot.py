@@ -305,7 +305,7 @@ class OrderConfirmationBot:
                         [
                             {
                                 "role": "system",
-                                "content": "The user has been quiet for a while. Ask if they are still there and try to re-engage them in the conversation.",
+                                "content": "The user has been quiet for a while. Ask if they are still there and re-engage them in the conversation.",
                             }
                         ],
                         run_llm=True,
@@ -318,21 +318,30 @@ class OrderConfirmationBot:
             )
             logger.info(f"User idle detection enabled with timeout: {BREEZE_BUDDY_USER_IDLE_TIMEOUT}s")
 
+        # Store reference to user aggregator for position lookup
+        user_aggregator = context_aggregator.user()
+        
         # Build pipeline with optional user idle processor
         pipeline_parts = [
             self.transport.input(),
             stt,
             stt_mute_filter,
-            context_aggregator.user(),
+            user_aggregator,
             llm,
             tts,
             self.transport.output(),
             context_aggregator.assistant(),
         ]
 
-        # Insert user idle processor after stt_mute_filter and before context aggregator
+        # Insert user idle processor before context aggregator to monitor user activity
         if user_idle:
-            pipeline_parts.insert(3, user_idle)
+            try:
+                user_aggregator_idx = pipeline_parts.index(user_aggregator)
+                pipeline_parts.insert(user_aggregator_idx, user_idle)
+            except ValueError:
+                # Fallback: insert at position 3 (after stt_mute_filter)
+                logger.warning("Could not find user aggregator in pipeline, inserting at position 3")
+                pipeline_parts.insert(3, user_idle)
 
         pipeline = Pipeline(pipeline_parts)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
