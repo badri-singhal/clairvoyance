@@ -11,6 +11,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from opentelemetry import trace
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
+from pipecat.frames.frames import LLMMessagesAppendFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -21,6 +22,7 @@ from pipecat.processors.filters.stt_mute_filter import (
     STTMuteFilter,
     STTMuteStrategy,
 )
+from pipecat.processors.user_idle_processor import UserIdleProcessor
 from pipecat.services.azure.llm import AzureLLMService
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
@@ -48,6 +50,7 @@ from app.core.config.static import (
     AZURE_BREEZE_BUDDY_OPENAI_MODEL,
     AZURE_OPENAI_API_KEY,
     AZURE_OPENAI_ENDPOINT,
+    BREEZE_BUDDY_USER_IDLE_TIMEOUT,
     BREEZE_BUDDY_VAD_CONFIDENCE,
     BREEZE_BUDDY_VAD_MIN_VOLUME,
     BREEZE_BUDDY_VAD_START_SECS,
@@ -291,18 +294,47 @@ class OrderConfirmationBot:
             self.context, user_params=user_params
         )
 
-        pipeline = Pipeline(
-            [
-                self.transport.input(),
-                stt,
-                stt_mute_filter,
-                context_aggregator.user(),
-                llm,
-                tts,
-                self.transport.output(),
-                context_aggregator.assistant(),
-            ]
-        )
+        # Create user idle processor if timeout is configured
+        user_idle = None
+        if BREEZE_BUDDY_USER_IDLE_TIMEOUT > 0:
+            async def handle_user_idle(processor: UserIdleProcessor) -> None:
+                """Handle user idle by prompting the user."""
+                logger.info("User idle detected, prompting user")
+                await processor.push_frame(
+                    LLMMessagesAppendFrame(
+                        [
+                            {
+                                "role": "system",
+                                "content": "The user has been quiet for a while. Ask if they are still there and try to re-engage them in the conversation.",
+                            }
+                        ],
+                        run_llm=True,
+                    )
+                )
+
+            user_idle = UserIdleProcessor(
+                callback=handle_user_idle,
+                timeout=BREEZE_BUDDY_USER_IDLE_TIMEOUT,
+            )
+            logger.info(f"User idle detection enabled with timeout: {BREEZE_BUDDY_USER_IDLE_TIMEOUT}s")
+
+        # Build pipeline with optional user idle processor
+        pipeline_parts = [
+            self.transport.input(),
+            stt,
+            stt_mute_filter,
+            context_aggregator.user(),
+            llm,
+            tts,
+            self.transport.output(),
+            context_aggregator.assistant(),
+        ]
+
+        # Insert user idle processor after stt_mute_filter and before context aggregator
+        if user_idle:
+            pipeline_parts.insert(3, user_idle)
+
+        pipeline = Pipeline(pipeline_parts)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         conversation_id = f"{customer_name}-{self.shop_name}-{timestamp}"
 
