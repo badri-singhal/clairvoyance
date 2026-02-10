@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+from pipecat.frames.frames import LLMMessagesAppendFrame
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.observers.loggers.metrics_log_observer import MetricsLogObserver
 from pipecat.observers.loggers.transcription_log_observer import (
@@ -17,6 +18,7 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_response import LLMUserAggregatorParams
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.user_idle_processor import UserIdleProcessor
 from pipecat.services.azure.llm import AzureLLMService
 
 from app.ai.voice.agents.breeze_buddy.observability.tracing_setup import setup_tracing
@@ -34,6 +36,8 @@ from app.core.config.static import (
     AZURE_BREEZE_BUDDY_OPENAI_MODEL,
     AZURE_OPENAI_API_KEY,
     AZURE_OPENAI_ENDPOINT,
+    BREEZE_BUDDY_USER_IDLE_MESSAGE,
+    BREEZE_BUDDY_USER_IDLE_TIMEOUT,
     ENABLE_BREEZE_BUDDY_TRACING,
     ENABLE_BREEZE_BUDDY_USER_INTERRUPTION,
     ENVIRONMENT,
@@ -138,10 +142,37 @@ async def build_pipeline(
 
     response_gate = ResponseStateGate() if await BB_ENABLE_RESPONSE_GATE() else None
 
+    # Create user idle processor if timeout is configured
+    user_idle = None
+    if BREEZE_BUDDY_USER_IDLE_TIMEOUT > 0:
+        async def handle_user_idle(processor: UserIdleProcessor) -> None:
+            """Handle user idle by prompting the user."""
+            logger.info("User idle detected, prompting user")
+            await processor.push_frame(
+                LLMMessagesAppendFrame(
+                    [
+                        {
+                            "role": "system",
+                            "content": BREEZE_BUDDY_USER_IDLE_MESSAGE,
+                        }
+                    ],
+                    run_llm=True,
+                )
+            )
+
+        user_idle = UserIdleProcessor(
+            callback=handle_user_idle,
+            timeout=BREEZE_BUDDY_USER_IDLE_TIMEOUT,
+        )
+        logger.info(f"User idle detection enabled with timeout: {BREEZE_BUDDY_USER_IDLE_TIMEOUT}s")
+
+    # Store reference to user aggregator for position lookup
+    user_aggregator = context_aggregator.user()
+
     pipeline_parts = [
         transport.input(),
         stt,
-        context_aggregator.user(),
+        user_aggregator,
         llm,
         tts,
         transport.output(),
@@ -150,6 +181,16 @@ async def build_pipeline(
 
     if response_gate:
         pipeline_parts.insert(2, response_gate)
+
+    # Insert user idle processor before context aggregator to monitor user activity
+    if user_idle:
+        try:
+            user_aggregator_idx = pipeline_parts.index(user_aggregator)
+            pipeline_parts.insert(user_aggregator_idx, user_idle)
+        except ValueError as e:
+            # This should never happen since we explicitly added user_aggregator above
+            logger.error(f"Failed to find user aggregator in pipeline: {e}. User idle detection disabled.")
+            # Don't insert user_idle - it's safer to disable the feature than insert at wrong position
 
     return Pipeline(pipeline_parts), context, context_aggregator
 
