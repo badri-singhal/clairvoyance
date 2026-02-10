@@ -320,7 +320,7 @@ class OrderConfirmationBot:
 
         # Store reference to user aggregator for position lookup
         user_aggregator = context_aggregator.user()
-        
+
         # Build pipeline with optional user idle processor
         pipeline_parts = [
             self.transport.input(),

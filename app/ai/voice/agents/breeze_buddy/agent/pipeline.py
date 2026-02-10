@@ -167,7 +167,7 @@ async def build_pipeline(
 
     # Store reference to user aggregator for position lookup
     user_aggregator = context_aggregator.user()
-    
+
     pipeline_parts = [
         transport.input(),
         stt,
