@@ -50,15 +50,22 @@ async def send_initial_greeting(
             return None
 
         greeting_source = greeting_result["greeting_source"]
+        
+        # Plivo uses "streamId" while Twilio/Exotel use "streamSid"
+        provider_str = (
+            provider.lower() if hasattr(provider, "lower") else str(provider).lower()
+        )
+        stream_id_key = "streamId" if provider_str == "plivo" else "streamSid"
+        
         media_message = {
             "event": "media",
-            "streamSid": stream_sid,
+            stream_id_key: stream_sid,
             "media": {"payload": greeting_result["payload"]},
         }
         success = await send_message(ws=ws, message=media_message)
         if success:
             logger.info(
-                f"Successfully sent initial greeting for streamSid: {stream_sid}"
+                f"Successfully sent initial greeting for {stream_id_key}: {stream_sid}"
             )
             return greeting_source
         else:

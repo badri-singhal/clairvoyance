@@ -502,7 +502,7 @@ async def prepare_initial_greeting_payload(
     Args:
         lead: Lead object containing lead information
         template: Template object containing template configuration
-        provider: Call provider (enum or string "twilio" or "exotel")
+        provider: Call provider (enum or string "twilio", "plivo", or "exotel")
 
     Returns:
         Dictionary with "payload" (base64 encoded audio) and "greeting_source",
@@ -563,11 +563,11 @@ async def prepare_initial_greeting_payload(
         logger.info(f"Prepared initial greeting audio from source: {greeting_source}")
 
         # Convert audio format based on provider
-        # Twilio expects mulaw, Exotel expects raw PCM (16-bit, 8kHz, mono)
-        if provider_str == "twilio":
-            # mulaw_data is already in correct format for Twilio
+        # Twilio and Plivo expect mulaw, Exotel expects raw PCM (16-bit, 8kHz, mono)
+        if provider_str in ("twilio", "plivo"):
+            # mulaw_data is already in correct format for Twilio and Plivo
             audio_to_send = mulaw_data
-            logger.info("Audio prepared as mulaw for Twilio")
+            logger.info(f"Audio prepared as mulaw for {provider_str}")
         else:
             try:
                 # Convert mulaw to 16-bit linear PCM
