@@ -399,7 +399,7 @@ def _convert_audio_for_provider(mulaw_data: bytes, provider: str) -> bytes:
 
     Args:
         mulaw_data: Audio in mulaw format
-        provider: "twilio" or "exotel"
+        provider: "twilio", "plivo", or "exotel"
 
     Returns:
         Audio bytes in provider-specific format
@@ -408,8 +408,8 @@ def _convert_audio_for_provider(mulaw_data: bytes, provider: str) -> bytes:
         provider.lower() if hasattr(provider, "lower") else str(provider).lower()
     )
 
-    if provider_str == "twilio":
-        # Twilio expects mulaw
+    if provider_str in ("twilio", "plivo"):
+        # Twilio and Plivo expect mulaw
         return mulaw_data
     else:
         # Exotel expects raw PCM 16-bit
