@@ -502,7 +502,7 @@ async def prepare_initial_greeting_payload(
     Args:
         lead: Lead object containing lead information
         template: Template object containing template configuration
-        provider: Call provider (enum or string "twilio" or "exotel")
+        provider: Call provider (enum or string "twilio", "plivo", or "exotel")
 
     Returns:
         Dictionary with "payload" (base64 encoded audio) and "greeting_source",
